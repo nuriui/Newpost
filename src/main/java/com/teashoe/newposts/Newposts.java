@@ -34,6 +34,7 @@ import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.net.URI;
 
 import me.shedaniel.autoconfig.AutoConfig;
 import me.shedaniel.autoconfig.serializer.GsonConfigSerializer;
@@ -53,6 +54,7 @@ public class Newposts implements ClientModInitializer {
         AutoConfig.getConfigHolder(ModConfig.class).registerSaveListener((configHolder, newConfig) -> {
             initializePostNumbers(); // 설정이 변경될 때마다 기존 게시물 목록 초기화
             return ActionResult.SUCCESS;
+
         });
 
         // 서버에 접속할 때 기존 게시물 목록을 초기화
@@ -116,11 +118,13 @@ public class Newposts implements ClientModInitializer {
 
                     Text postDetails = Text.literal(title + " " + authorWithIp)
                             .styled(style -> style
-                                    .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL,
-                                            "https://gall.dcinside.com/mgallery/board/view/?id=" + galleryId + "&no=" + number))
-                                    .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("게시물 보기")))
+                                    .withClickEvent(new ClickEvent.OpenUrl(
+                                            URI.create("https://gall.dcinside.com/mgallery/board/view/?id=" + galleryId + "&no=" + number)))
+                                    .withHoverEvent(new HoverEvent.ShowText(Text.literal("게시물 보기")))
                                     .withColor(Formatting.WHITE)
                             );
+
+
 
                     Text clickableMessage = newPostPrefix.append(postDetails);
 
@@ -129,7 +133,8 @@ public class Newposts implements ClientModInitializer {
                         if (client.player != null) {
                             boolean useSystemChat = ModConfig.get().useSystemChat;
                             client.player.sendMessage(clickableMessage, useSystemChat);
-                            client.player.playSound(SoundEvents.ENTITY_ARROW_HIT_PLAYER, SoundCategory.PLAYERS, 1.0F, 1.0F);
+                            client.player.playSound(SoundEvents.ENTITY_ARROW_HIT_PLAYER, 1.0F, 1.0F);
+
                         }
                     });
                 }

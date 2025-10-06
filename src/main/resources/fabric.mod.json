@@ -10,7 +10,7 @@
   "contact": {},
   "license": "MIT",
   "icon": "icon.png",
-  "environment": "client",
+  "environment": "*",
   "entrypoints": {
     "client": [
       "com.teashoe.newposts.client.NewpostsClient"

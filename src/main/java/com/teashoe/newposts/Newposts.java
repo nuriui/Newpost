@@ -59,11 +59,8 @@ public class Newposts implements ClientModInitializer {
 
         // 서버에 접속할 때 기존 게시물 목록을 초기화
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> initializePostNumbers());
-
-        // 클라이언트 틱 이벤트에 알림 기능 등록
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (newPostAlertEnabled && !scheduler.isShutdown()) {
-                // 주기적으로 웹 요청 작업을 수행하도록 설정 (60초 간격)
                 scheduler.scheduleAtFixedRate(() -> checkNewPosts(client), 0, 60, TimeUnit.SECONDS);
             }
         });
@@ -130,19 +127,15 @@ public class Newposts implements ClientModInitializer {
                     }
 
                     if (!dataUid.isEmpty() && ModConfig.get().showuid) {
-                        // 괄호 대신 대괄호로 수정 (이전 논의 반영)
                         authorText.append(Text.literal(" [" + dataUid + "]")
                                 .styled(style -> style.withColor(Formatting.GRAY)));
                     }
 
                     MutableText subjectPrefix = Text.literal("");
                     if (!subject.isEmpty()) {
-                        // 말머리 색상을 AQUA로 수정 (이전 논의 반영)
                         subjectPrefix.append(Text.literal("[" + subject + "] ")
                                 .styled(style -> style.withColor(Formatting.AQUA)));
                     }
-
-                    // "[새 게시물]" 대신 "[새글]" 사용 (이전 논의 반영)
                     MutableText newPostPrefix = Text.literal("[새글] ")
                             .styled(style -> style.withColor(Formatting.YELLOW));
 

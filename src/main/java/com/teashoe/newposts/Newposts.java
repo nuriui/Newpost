@@ -88,10 +88,9 @@ public class Newposts implements ClientModInitializer {
     }
 
     private void checkNewPosts(MinecraftClient client) {
-        if (client.player == null) return; // 플레이어가 없으면 중지
+        if (client.player == null) return;
 
-        // 설정 파일에서 galleryId를 가져옴
-        String galleryId = ModConfig.get().galleryId; // 사용자 정의 값 사용
+        String galleryId = ModConfig.get().galleryId;
         String url = "https://gall.dcinside.com/mgallery/board/lists?id=" + galleryId;
 
         try {
@@ -102,51 +101,64 @@ public class Newposts implements ClientModInitializer {
                 String number = postElement.select(".gall_num").text();
                 if (!currentPostNumbers.contains(number)) {
                     currentPostNumbers.add(number);
-                    String subject = postElement.select(".gall_subject").text();
+                    String subject = "";
+                    Element subjectElement = postElement.selectFirst(".gall_subject");
+
+                    if (subjectElement != null) {
+                        Element innerP = subjectElement.selectFirst(".subject_inner");
+
+                        if (innerP != null) {
+                            // 긴 말머리
+                            subject = innerP.text().trim();
+                        } else {
+                            // 짧은 말머리
+                            subject = subjectElement.text().trim();
+                        }
+                    }
+
                     String title = postElement.select(".gall_tit.ub-word").text();
                     String author = postElement.select(".gall_writer.ub-writer .nickname em").text();
-                    String dataIp = postElement.select(".gall_writer").attr("data-ip"); // data-ip 속성에서 값 가져오기
-                    String dataUid = postElement.select(".gall_writer").attr("data-uid"); // 식별코드 가져오기
+                    String dataIp = postElement.select(".gall_writer").attr("data-ip");
+                    String dataUid = postElement.select(".gall_writer").attr("data-uid");
 
-                    // IP 주소 표시 여부에 따라 처리
                     MutableText authorText = Text.literal("[" + author + "]")
                             .styled(style -> style.withColor(Formatting.WHITE));
 
                     if (!dataIp.isEmpty() && ModConfig.get().showIpAddress) {
-                        authorText.append(Text.literal(" (" + dataIp + ")") // 괄호 안에 아이피 추가
+                        authorText.append(Text.literal(" (" + dataIp + ")")
                                 .styled(style -> style.withColor(Formatting.GRAY)));
                     }
 
                     if (!dataUid.isEmpty() && ModConfig.get().showuid) {
-                        authorText.append(Text.literal(" (" + dataUid + ")") // 괄호 안에 식별코드 추가
+                        // 괄호 대신 대괄호로 수정 (이전 논의 반영)
+                        authorText.append(Text.literal(" [" + dataUid + "]")
                                 .styled(style -> style.withColor(Formatting.GRAY)));
                     }
 
-                    // 말머리 표시 여부에 따라 처리
                     MutableText subjectPrefix = Text.literal("");
                     if (!subject.isEmpty()) {
-                        // 말머리 텍스트가 있으면 대괄호로 감싸고 하늘색으로 표시
+                        // 말머리 색상을 AQUA로 수정 (이전 논의 반영)
                         subjectPrefix.append(Text.literal("[" + subject + "] ")
-                                .styled(style -> style.withColor(Formatting.GREEN)));
+                                .styled(style -> style.withColor(Formatting.AQUA)));
                     }
 
-                    // MutableText로 "[새 게시물]"은 노란색으로 표시함
+                    // "[새 게시물]" 대신 "[새글]" 사용 (이전 논의 반영)
                     MutableText newPostPrefix = Text.literal("[새글] ")
                             .styled(style -> style.withColor(Formatting.YELLOW));
 
+                    // 1.21.5 API 사용
                     MutableText postDetails = Text.literal(title + " ")
                             .styled(style -> style
                                     .withClickEvent(new ClickEvent.OpenUrl(
                                             URI.create("https://gall.dcinside.com/mgallery/board/view/?id=" + galleryId + "&no=" + number)))
                                     .withHoverEvent(new HoverEvent.ShowText(Text.literal("게시물 보기")))
-                                    .withColor(Formatting.WHITE) // 제목 색상
-                            ).append(authorText); // 작성자 텍스트 컴포넌트 추가
+                                    .withColor(Formatting.WHITE)
+                            ).append(authorText);
 
 
                     MutableText combinedPrefix = newPostPrefix.append(subjectPrefix);
                     MutableText clickableMessage = combinedPrefix.append(postDetails);
 
-                    // 클라이언트 플레이어에게 메시지를 전송
                     client.execute(() -> {
                         if (client.player != null) {
                             boolean useSystemChat = ModConfig.get().useSystemChat;
@@ -159,7 +171,6 @@ public class Newposts implements ClientModInitializer {
             }
 
         } catch (IOException e) {
-            // 오류 메시지를 로그에 출력
             LOGGER.error("게시물을 가져오는 중 오류가 발생했습니다: {}", e.getMessage());
         }
     }

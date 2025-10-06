@@ -102,31 +102,49 @@ public class Newposts implements ClientModInitializer {
                 String number = postElement.select(".gall_num").text();
                 if (!currentPostNumbers.contains(number)) {
                     currentPostNumbers.add(number);
+                    String subject = postElement.select(".gall_subject").text();
                     String title = postElement.select(".gall_tit.ub-word").text();
                     String author = postElement.select(".gall_writer.ub-writer .nickname em").text();
                     String dataIp = postElement.select(".gall_writer").attr("data-ip"); // data-ip 속성에서 값 가져오기
+                    String dataUid = postElement.select(".gall_writer").attr("data-uid"); // 식별코드 가져오기
 
                     // IP 주소 표시 여부에 따라 처리
-                    String authorWithIp = "[" + author + "]";
+                    MutableText authorText = Text.literal("[" + author + "]")
+                            .styled(style -> style.withColor(Formatting.WHITE));
+
                     if (!dataIp.isEmpty() && ModConfig.get().showIpAddress) {
-                        authorWithIp += " (" + dataIp + ")"; // 괄호 안에 IP 추가
+                        authorText.append(Text.literal(" (" + dataIp + ")") // 괄호 안에 아이피 추가
+                                .styled(style -> style.withColor(Formatting.GRAY)));
+                    }
+
+                    if (!dataUid.isEmpty() && ModConfig.get().showuid) {
+                        authorText.append(Text.literal(" (" + dataUid + ")") // 괄호 안에 식별코드 추가
+                                .styled(style -> style.withColor(Formatting.GRAY)));
+                    }
+
+                    // 말머리 표시 여부에 따라 처리
+                    MutableText subjectPrefix = Text.literal("");
+                    if (!subject.isEmpty()) {
+                        // 말머리 텍스트가 있으면 대괄호로 감싸고 하늘색으로 표시
+                        subjectPrefix.append(Text.literal("[" + subject + "] ")
+                                .styled(style -> style.withColor(Formatting.GREEN)));
                     }
 
                     // MutableText로 "[새 게시물]"은 노란색으로 표시함
-                    MutableText newPostPrefix = Text.literal("[새 게시물] ")
+                    MutableText newPostPrefix = Text.literal("[새글] ")
                             .styled(style -> style.withColor(Formatting.YELLOW));
 
-                    Text postDetails = Text.literal(title + " " + authorWithIp)
+                    MutableText postDetails = Text.literal(title + " ")
                             .styled(style -> style
                                     .withClickEvent(new ClickEvent.OpenUrl(
                                             URI.create("https://gall.dcinside.com/mgallery/board/view/?id=" + galleryId + "&no=" + number)))
                                     .withHoverEvent(new HoverEvent.ShowText(Text.literal("게시물 보기")))
-                                    .withColor(Formatting.WHITE)
-                            );
+                                    .withColor(Formatting.WHITE) // 제목 색상
+                            ).append(authorText); // 작성자 텍스트 컴포넌트 추가
 
 
-
-                    Text clickableMessage = newPostPrefix.append(postDetails);
+                    MutableText combinedPrefix = newPostPrefix.append(subjectPrefix);
+                    MutableText clickableMessage = combinedPrefix.append(postDetails);
 
                     // 클라이언트 플레이어에게 메시지를 전송
                     client.execute(() -> {

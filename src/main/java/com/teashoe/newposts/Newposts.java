@@ -11,31 +11,25 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.text.ClickEvent;
 import net.minecraft.text.HoverEvent;
-import net.minecraft.client.sound.SoundInstance;
-import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.text.MutableText;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.minecraft.util.ActionResult;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
-
 import java.io.IOException;
+import java.net.URI;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.net.URI;
-
 import me.shedaniel.autoconfig.AutoConfig;
 import me.shedaniel.autoconfig.serializer.GsonConfigSerializer;
 
@@ -43,21 +37,18 @@ public class Newposts implements ClientModInitializer {
 
     private boolean newPostAlertEnabled = true;
     private final Set<String> currentPostNumbers = new HashSet<>();
-    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(); // 작업 스케줄러 추가
+    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private static final Logger LOGGER = LoggerFactory.getLogger("newposts");
 
     @Override
     public void onInitializeClient() {
-        // 설정 파일을 등록하여 초기화
         AutoConfig.register(ModConfig.class, GsonConfigSerializer::new);
 
         AutoConfig.getConfigHolder(ModConfig.class).registerSaveListener((configHolder, newConfig) -> {
-            initializePostNumbers(); // 설정이 변경될 때마다 기존 게시물 목록 초기화
+            initializePostNumbers();
             return ActionResult.SUCCESS;
-
         });
 
-        // 서버에 접속할 때 기존 게시물 목록을 초기화
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> initializePostNumbers());
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (newPostAlertEnabled && !scheduler.isShutdown()) {
@@ -67,20 +58,18 @@ public class Newposts implements ClientModInitializer {
     }
 
     private void initializePostNumbers() {
-        // 설정 파일에서 galleryId를 가져옴
-        String galleryId = ModConfig.get().galleryId; // 사용자 정의 값 사용
+        String galleryId = ModConfig.get().galleryId;
         String url = "https://gall.dcinside.com/mgallery/board/lists?id=" + galleryId;
 
         try {
             Document document = Jsoup.connect(url).get();
             Elements postList = document.select(".ub-content.us-post");
-
             for (Element postElement : postList) {
                 String number = postElement.select(".gall_num").text();
-                currentPostNumbers.add(number); // 기존 게시물 번호를 저장
+                currentPostNumbers.add(number);
             }
         } catch (IOException e) {
-            LOGGER.error("게시물을 초기화하는 중 오류가 발생했습니다: {}", e.getMessage());
+            LOGGER.error("게시물을 초기화하는 중 오류 발생: {}", e.getMessage());
         }
     }
 
@@ -98,19 +87,12 @@ public class Newposts implements ClientModInitializer {
                 String number = postElement.select(".gall_num").text();
                 if (!currentPostNumbers.contains(number)) {
                     currentPostNumbers.add(number);
+
                     String subject = "";
                     Element subjectElement = postElement.selectFirst(".gall_subject");
-
                     if (subjectElement != null) {
                         Element innerP = subjectElement.selectFirst(".subject_inner");
-
-                        if (innerP != null) {
-                            // 긴 말머리
-                            subject = innerP.text().trim();
-                        } else {
-                            // 짧은 말머리
-                            subject = subjectElement.text().trim();
-                        }
+                        subject = (innerP != null ? innerP.text().trim() : subjectElement.text().trim());
                     }
 
                     String title = postElement.select(".gall_tit.ub-word").text();
@@ -121,14 +103,47 @@ public class Newposts implements ClientModInitializer {
                     MutableText authorText = Text.literal("[" + author + "]")
                             .styled(style -> style.withColor(Formatting.WHITE));
 
-                    if (!dataIp.isEmpty() && ModConfig.get().showIpAddress) {
-                        authorText.append(Text.literal(" (" + dataIp + ")")
-                                .styled(style -> style.withColor(Formatting.GRAY)));
-                    }
+                    boolean kkanggye = false; // 깡계 체크
 
+                    if (!dataUid.isEmpty()) {
+                        String gallogUrl = "https://gallog.dcinside.com/" + dataUid;
+                        try {
+                            Document gallogDoc = Jsoup.connect(gallogUrl).get();
+                            String postCountText = gallogDoc.select("h2.tit:contains(게시글) span.num")
+                                    .text().replaceAll("[^0-9]", "");
+                            int postCount = postCountText.isEmpty() ? 0 : Integer.parseInt(postCountText);
+
+                            String commentCountText = gallogDoc.select("h2.tit:contains(댓글) span.num")
+                                    .text().replaceAll("[^0-9]", "");
+                            int commentCount = commentCountText.isEmpty() ? 0 : Integer.parseInt(commentCountText);
+                            int totalActivity = postCount + commentCount;
+                            int lowActivity = ModConfig.get().geuldethap;
+                            if (totalActivity < lowActivity) {
+                                kkanggye = true;
+                            }
+                        } catch (IOException e) {
+                            LOGGER.warn("갤로그 불러오기 실패 ({}): {}", dataUid, e.getMessage());
+                        }
+                    }
+                    if (!dataIp.isEmpty() && ModConfig.get().showIpAddress) {
+                        String prefix = dataIp.split("\\.")[0] + "." + dataIp.split("\\.")[1];
+                        String ispLabel = getIspLabel(prefix);
+
+                        if (ispLabel != null) {
+                            authorText.append(Text.literal(" (" + prefix + ")-" + ispLabel)
+                                    .styled(style -> style.withColor(Formatting.RED)));
+                        } else {
+                            authorText.append(Text.literal(" (" + dataIp + ")")
+                                    .styled(style -> style.withColor(Formatting.GRAY)));
+                        }
+                    }
                     if (!dataUid.isEmpty() && ModConfig.get().showuid) {
-                        authorText.append(Text.literal(" [" + dataUid + "]")
-                                .styled(style -> style.withColor(Formatting.GRAY)));
+                        Formatting uidColor = kkanggye ? Formatting.RED : Formatting.GRAY;
+
+                        MutableText uidText = Text.literal(" [" + dataUid + "]")
+                                .styled(style -> style.withColor(uidColor));
+
+                        authorText.append(uidText);
                     }
 
                     MutableText subjectPrefix = Text.literal("");
@@ -136,10 +151,10 @@ public class Newposts implements ClientModInitializer {
                         subjectPrefix.append(Text.literal("[" + subject + "] ")
                                 .styled(style -> style.withColor(Formatting.AQUA)));
                     }
+
                     MutableText newPostPrefix = Text.literal("[새글] ")
                             .styled(style -> style.withColor(Formatting.YELLOW));
 
-                    // 1.21.5 API 사용
                     MutableText postDetails = Text.literal(title + " ")
                             .styled(style -> style
                                     .withClickEvent(new ClickEvent.OpenUrl(
@@ -147,7 +162,6 @@ public class Newposts implements ClientModInitializer {
                                     .withHoverEvent(new HoverEvent.ShowText(Text.literal("게시물 보기")))
                                     .withColor(Formatting.WHITE)
                             ).append(authorText);
-
 
                     MutableText combinedPrefix = newPostPrefix.append(subjectPrefix);
                     MutableText clickableMessage = combinedPrefix.append(postDetails);
@@ -157,14 +171,40 @@ public class Newposts implements ClientModInitializer {
                             boolean useSystemChat = ModConfig.get().useSystemChat;
                             client.player.sendMessage(clickableMessage, useSystemChat);
                             client.player.playSound(SoundEvents.ENTITY_ARROW_HIT_PLAYER, 1.0F, 1.0F);
-
                         }
                     });
                 }
             }
 
         } catch (IOException e) {
-            LOGGER.error("게시물을 가져오는 중 오류가 발생했습니다: {}", e.getMessage());
+            LOGGER.error("게시물을 가져오는 중 오류 발생: {}", e.getMessage());
         }
     }
+    private String getIspLabel(String prefix) {
+        switch (prefix) {
+            // SK 통피
+            case "203.226": case "203.236": case "211.179": case "211.234":
+            case "115.161": case "121.163": case "121.190": case "122.202":
+            case "122.32":  case "123.228": case "175.202": case "223.32":
+            case "223.33":  case "223.38":  case "223.39":  case "223.57":
+            case "223.62":
+                return "SK";
+
+            // KT 통피
+            case "39.7": case "110.70": case "119.71": case "119.194":
+            case "175.223": case "175.252": case "175.253": case "211.246":
+            case "210.125": case "118.235":
+                return "KT";
+
+            // LG 통피
+            case "14.41": case "61.33": case "61.43": case "106.101":
+            case "106.102": case "114.200": case "117.111": case "125.188":
+            case "211.36": case "211.60":
+                return "LG";
+
+            default:
+                return null;
+        }
+    }
+
 }

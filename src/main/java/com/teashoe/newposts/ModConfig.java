@@ -11,6 +11,7 @@ public class ModConfig implements ConfigData {
     public boolean useSystemChat = false;
     public boolean showIpAddress = true;
     public boolean showuid = true;
+    public int geuldethap = 100; // 깡계 기준
 
     public static ModConfig get() {
         return AutoConfig.getConfigHolder(ModConfig.class).getConfig();

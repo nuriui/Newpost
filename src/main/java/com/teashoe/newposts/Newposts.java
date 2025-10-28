@@ -23,10 +23,9 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
-import java.io.IOException;
+import java.io.*;
 import java.net.URI;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -39,6 +38,10 @@ public class Newposts implements ClientModInitializer {
     private final Set<String> currentPostNumbers = new HashSet<>();
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private static final Logger LOGGER = LoggerFactory.getLogger("newposts");
+
+    // ✅ 통신사 캐시
+    private static final Map<String, String> ISP_MAP = new HashMap<>();
+    private static boolean ispLoaded = false;
 
     @Override
     public void onInitializeClient() {
@@ -125,6 +128,7 @@ public class Newposts implements ClientModInitializer {
                             LOGGER.warn("갤로그 불러오기 실패 ({}): {}", dataUid, e.getMessage());
                         }
                     }
+
                     if (!dataIp.isEmpty() && ModConfig.get().showIpAddress) {
                         String prefix = dataIp.split("\\.")[0] + "." + dataIp.split("\\.")[1];
                         String ispLabel = getIspLabel(prefix);
@@ -137,12 +141,11 @@ public class Newposts implements ClientModInitializer {
                                     .styled(style -> style.withColor(Formatting.GRAY)));
                         }
                     }
+
                     if (!dataUid.isEmpty() && ModConfig.get().showuid) {
                         Formatting uidColor = kkanggye ? Formatting.RED : Formatting.GRAY;
-
                         MutableText uidText = Text.literal(" [" + dataUid + "]")
                                 .styled(style -> style.withColor(uidColor));
-
                         authorText.append(uidText);
                     }
 
@@ -180,31 +183,37 @@ public class Newposts implements ClientModInitializer {
             LOGGER.error("게시물을 가져오는 중 오류 발생: {}", e.getMessage());
         }
     }
-    private String getIspLabel(String prefix) {
-        switch (prefix) {
-            // SK 통피
-            case "203.226": case "203.236": case "211.179": case "211.234":
-            case "115.161": case "121.163": case "121.190": case "122.202":
-            case "122.32":  case "123.228": case "175.202": case "223.32":
-            case "223.33":  case "223.38":  case "223.39":  case "223.57":
-            case "223.62":
-                return "SK";
 
-            // KT 통피
-            case "39.7": case "110.70": case "119.71": case "119.194":
-            case "175.223": case "175.252": case "175.253": case "211.246":
-            case "210.125": case "118.235":
-                return "KT";
+    // ✅ 통신사 데이터 로드
+    private void loadIspData() {
+        if (ispLoaded) return;
+        ispLoaded = true;
 
-            // LG 통피
-            case "14.41": case "61.33": case "61.43": case "106.101":
-            case "106.102": case "114.200": case "117.111": case "125.188":
-            case "211.36": case "211.60":
-                return "LG";
+        try (InputStream input = getClass().getResourceAsStream("/merged_ip_list.txt")) {
+            if (input == null) {
+                LOGGER.warn("merged_ip_list.txt 파일을 찾을 수 없습니다.");
+                return;
+            }
 
-            default:
-                return null;
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(input))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    line = line.trim();
+                    if (line.isEmpty() || !line.contains("-")) continue;
+                    String[] parts = line.split("-", 2);
+                    if (parts.length == 2) {
+                        ISP_MAP.put(parts[0].trim(), parts[1].trim());
+                    }
+                }
+                LOGGER.info("IP 데이터 {}개 로드 완료.", ISP_MAP.size());
+            }
+        } catch (Exception e) {
+            LOGGER.error("IP 데이터 로드 실패: {}", e.getMessage());
         }
     }
 
+    private String getIspLabel(String prefix) {
+        loadIspData();
+        return ISP_MAP.get(prefix);
+    }
 }

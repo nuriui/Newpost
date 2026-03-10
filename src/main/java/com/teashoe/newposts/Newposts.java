@@ -108,7 +108,9 @@ public class Newposts implements ClientModInitializer {
 
                     boolean kkanggye = false; // 깡계 체크
 
-                    if (!dataUid.isEmpty()) {
+                    boolean kkanggyecheck = ModConfig.get().checkgallog;
+
+                    if (kkanggyecheck && !dataUid.isEmpty()) { // kkanggyecheck가 true일 때만 실행
                         String gallogUrl = "https://gallog.dcinside.com/" + dataUid;
                         try {
                             Document gallogDoc = Jsoup.connect(gallogUrl).get();

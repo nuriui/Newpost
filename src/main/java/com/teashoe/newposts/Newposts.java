@@ -8,15 +8,14 @@ import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallba
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.text.ClickEvent;
-import net.minecraft.text.HoverEvent;
-import net.minecraft.sound.SoundEvents;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-import net.minecraft.text.MutableText;
-import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
-import net.minecraft.util.ActionResult;
+import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.ClickEvent;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.world.InteractionResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.jsoup.Jsoup;
@@ -49,7 +48,7 @@ public class Newposts implements ClientModInitializer {
 
         AutoConfig.getConfigHolder(ModConfig.class).registerSaveListener((configHolder, newConfig) -> {
             initializePostNumbers();
-            return ActionResult.SUCCESS;
+            return InteractionResult.SUCCESS;
         });
 
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> initializePostNumbers());
@@ -76,7 +75,7 @@ public class Newposts implements ClientModInitializer {
         }
     }
 
-    private void checkNewPosts(MinecraftClient client) {
+    private void checkNewPosts(Minecraft client) {
         if (client.player == null) return;
 
         String galleryId = ModConfig.get().galleryId;
@@ -103,8 +102,8 @@ public class Newposts implements ClientModInitializer {
                     String dataIp = postElement.select(".gall_writer").attr("data-ip");
                     String dataUid = postElement.select(".gall_writer").attr("data-uid");
 
-                    MutableText authorText = Text.literal("[" + author + "]")
-                            .styled(style -> style.withColor(Formatting.WHITE));
+                    MutableComponent authorText = Component.literal("[" + author + "]")
+                            .withStyle(style -> style.withColor(ChatFormatting.WHITE));
 
                     boolean kkanggye = false; // 깡계 체크
 
@@ -136,46 +135,50 @@ public class Newposts implements ClientModInitializer {
                         String ispLabel = getIspLabel(prefix);
 
                         if (ispLabel != null) {
-                            authorText.append(Text.literal(" (" + prefix + ")-" + ispLabel)
-                                    .styled(style -> style.withColor(Formatting.RED)));
+                            authorText.append(Component.literal(" (" + prefix + ")-" + ispLabel)
+                                    .withStyle(style -> style.withColor(ChatFormatting.RED)));
                         } else {
-                            authorText.append(Text.literal(" (" + dataIp + ")")
-                                    .styled(style -> style.withColor(Formatting.GRAY)));
+                            authorText.append(Component.literal(" (" + dataIp + ")")
+                                    .withStyle(style -> style.withColor(ChatFormatting.GRAY)));
                         }
                     }
 
                     if (!dataUid.isEmpty() && ModConfig.get().showuid) {
-                        Formatting uidColor = kkanggye ? Formatting.RED : Formatting.GRAY;
-                        MutableText uidText = Text.literal(" [" + dataUid + "]")
-                                .styled(style -> style.withColor(uidColor));
+                        ChatFormatting uidColor = kkanggye ? ChatFormatting.RED : ChatFormatting.GRAY;
+                        MutableComponent uidText = Component.literal(" [" + dataUid + "]")
+                                .withStyle(style -> style.withColor(uidColor));
                         authorText.append(uidText);
                     }
 
-                    MutableText subjectPrefix = Text.literal("");
+                    MutableComponent subjectPrefix = Component.literal("");
                     if (!subject.isEmpty()) {
-                        subjectPrefix.append(Text.literal("[" + subject + "] ")
-                                .styled(style -> style.withColor(Formatting.AQUA)));
+                        subjectPrefix.append(Component.literal("[" + subject + "] ")
+                                .withStyle(style -> style.withColor(ChatFormatting.AQUA)));
                     }
 
-                    MutableText newPostPrefix = Text.literal("[새글] ")
-                            .styled(style -> style.withColor(Formatting.YELLOW));
+                    MutableComponent newPostPrefix = Component.literal("[새글] ")
+                            .withStyle(style -> style.withColor(ChatFormatting.YELLOW));
 
-                    MutableText postDetails = Text.literal(title + " ")
-                            .styled(style -> style
+                    MutableComponent postDetails = Component.literal(title + " ")
+                            .withStyle(style -> style
                                     .withClickEvent(new ClickEvent.OpenUrl(
                                             URI.create("https://gall.dcinside.com/mgallery/board/view/?id=" + galleryId + "&no=" + number)))
-                                    .withHoverEvent(new HoverEvent.ShowText(Text.literal("게시물 보기")))
-                                    .withColor(Formatting.WHITE)
+                                    .withHoverEvent(new HoverEvent.ShowText(Component.literal("게시물 보기")))
+                                    .withColor(ChatFormatting.WHITE)
                             ).append(authorText);
 
-                    MutableText combinedPrefix = newPostPrefix.append(subjectPrefix);
-                    MutableText clickableMessage = combinedPrefix.append(postDetails);
+                    MutableComponent combinedPrefix = newPostPrefix.append(subjectPrefix);
+                    MutableComponent clickableMessage = combinedPrefix.append(postDetails);
 
                     client.execute(() -> {
                         if (client.player != null) {
                             boolean useSystemChat = ModConfig.get().useSystemChat;
-                            client.player.sendMessage(clickableMessage, useSystemChat);
-                            client.player.playSound(SoundEvents.ENTITY_ARROW_HIT_PLAYER, 1.0F, 1.0F);
+                            if (useSystemChat) {
+                                client.player.sendOverlayMessage(clickableMessage);
+                            } else {
+                                client.player.sendSystemMessage(clickableMessage);
+                            }
+                            client.player.playSound(SoundEvents.ARROW_HIT_PLAYER, 1.0F, 1.0F);
                         }
                     });
                 }

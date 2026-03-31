@@ -19,6 +19,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -29,11 +31,13 @@ import java.util.concurrent.TimeUnit;
 @Mod.EventBusSubscriber(modid = Newposts.MOD_ID, value = Dist.CLIENT)
 public class ClientEvents {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("newposts");
+    private static final Logger LOGGER = LoggerFactory.getLogger(Newposts.MOD_ID);
     // ConcurrentHashMap 기반 Set: 스케줄러 스레드와 config 리로드 스레드가 동시에 접근해도 안전
     private static final Set<String> currentPostNumbers = ConcurrentHashMap.newKeySet();
     private static final Map<String, String> ISP_MAP = new HashMap<>();
     private static boolean ispLoaded = false;
+    private static boolean initialized = false;
+    private static String lastInitializedGalleryId = "";
     private static ScheduledExecutorService scheduler;
 
     // DC Inside 접속 시 필요한 브라우저 헤더
@@ -42,14 +46,18 @@ public class ClientEvents {
 
     @SubscribeEvent
     public static void onPlayerLogin(ClientPlayerNetworkEvent.LoggingIn event) {
-        // Forge mod classloader를 유지하는 스레드에서 초기화 (AppClassLoader로 jsoup이 로드되는 문제 방지)
         ClassLoader modClassLoader = ClientEvents.class.getClassLoader();
         Thread t = new Thread(() -> {
-            initializePostNumbers();
-            startScheduler();
+            try {
+                initializePostNumbers();
+                startScheduler();
+            } catch (Exception e) {
+                LOGGER.error("[newposts] 초기화 중 오류 발생", e);
+            }
         });
         t.setContextClassLoader(modClassLoader);
         t.setDaemon(true);
+        t.setName("newposts-init");
         t.start();
     }
 
@@ -60,16 +68,21 @@ public class ClientEvents {
             scheduler = null;
         }
         currentPostNumbers.clear();
+        initialized = false;
+        lastInitializedGalleryId = "";
     }
 
     private static void startScheduler() {
-        if (scheduler != null && !scheduler.isShutdown()) return;
-        // Forge mod classloader를 스케줄러 스레드에도 전달
+        if (scheduler != null && !scheduler.isShutdown()) {
+            LOGGER.warn("[newposts] 스케줄러가 이미 실행 중입니다. 중복 시작 방지됨.");
+            return;
+        }
         ClassLoader modClassLoader = ClientEvents.class.getClassLoader();
         scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
             Thread t = new Thread(r);
             t.setContextClassLoader(modClassLoader);
             t.setDaemon(true);
+            t.setName("newposts-scheduler");
             return t;
         });
         scheduler.scheduleAtFixedRate(() -> {
@@ -78,50 +91,63 @@ public class ClientEvents {
                 Minecraft mc = Minecraft.getInstance();
                 checkNewPosts(mc);
             } catch (Exception e) {
-                LOGGER.error("[newposts] 스케줄러 실행 중 오류 (다음 주기에 재시도): {}", e.getMessage(), e);
+                LOGGER.error("[newposts] 스케줄러 실행 중 오류: {}", e.getMessage(), e);
             }
         }, 5, 5, TimeUnit.SECONDS);
     }
 
     public static void initializePostNumbers() {
-        String galleryId = NewpostsConfig.GALLERY_ID.get();
-        String url = "https://gall.dcinside.com/mgallery/board/lists?id=" + galleryId;
-
+        initialized = false;
+        String galleryId;
         try {
-            Document document = Jsoup.connect(url)
-                    .userAgent(USER_AGENT)
-                    .header("Referer", "https://gall.dcinside.com/")
-                    .timeout(10000)
-                    .get();
+            galleryId = NewpostsConfig.GALLERY_ID.get();
+        } catch (Exception e) {
+            LOGGER.error("[newposts] 설정값(GALLERY_ID) 읽기 실패", e);
+            return;
+        }
+        String url = "https://gall.dcinside.com/mgallery/board/lists?id=" + galleryId;
+        try {
+            Document document = fetchDocument(url, USER_AGENT, "https://gall.dcinside.com/", 10000);
             Elements postList = document.select(".ub-content.us-post");
             currentPostNumbers.clear();
             for (Element postElement : postList) {
                 String number = postElement.select(".gall_num").text();
                 currentPostNumbers.add(number);
             }
+            initialized = true;
+            lastInitializedGalleryId = galleryId;
+            LOGGER.info("[newposts] 초기화 완료 - {}개 게시물 등록됨", currentPostNumbers.size());
         } catch (IOException e) {
-            LOGGER.error("[newposts] 게시물 초기화 실패: {}", e.getMessage());
+            LOGGER.error("[newposts] 게시물 초기화 실패 (갤러리: {}): {}", galleryId, e.getMessage(), e);
+        } catch (Exception e) {
+            LOGGER.error("[newposts] 게시물 초기화 중 예상치 못한 오류", e);
         }
     }
 
     private static void checkNewPosts(Minecraft client) {
         if (client.player == null) return;
 
+        // 초기화 실패 시 알림 없이 현재 게시물을 조용히 등록
+        if (!initialized) {
+            initializePostNumbers();
+            return;
+        }
+
         String galleryId = NewpostsConfig.GALLERY_ID.get();
+
+        // galleryId가 초기화 당시와 다르면 알림 없이 재초기화 (Forge가 이벤트 전에 config 값을 먼저 반영하는 문제 대응)
+        if (!galleryId.equals(lastInitializedGalleryId)) {
+            initializePostNumbers();
+            return;
+        }
+
         String url = "https://gall.dcinside.com/mgallery/board/lists?id=" + galleryId;
 
         try {
-            Document document = Jsoup.connect(url)
-                    .userAgent(USER_AGENT)
-                    .header("Referer", "https://gall.dcinside.com/")
-                    .timeout(10000)
-                    .get();
+            Document document = fetchDocument(url, USER_AGENT, "https://gall.dcinside.com/", 10000);
             Elements postList = document.select(".ub-content.us-post");
 
-            if (postList.isEmpty()) {
-                LOGGER.warn("[newposts] 게시물 목록이 비어있습니다. 갤러리 ID를 확인하세요: {}", galleryId);
-                return;
-            }
+            if (postList.isEmpty()) return;
 
             for (Element postElement : postList) {
                 String number = postElement.select(".gall_num").text();
@@ -147,10 +173,7 @@ public class ClientEvents {
                     if (NewpostsConfig.CHECK_GALLOG.get() && !dataUid.isEmpty()) {
                         String gallogUrl = "https://gallog.dcinside.com/" + dataUid;
                         try {
-                            Document gallogDoc = Jsoup.connect(gallogUrl)
-                                    .userAgent(USER_AGENT)
-                                    .timeout(8000)
-                                    .get();
+                            Document gallogDoc = fetchDocument(gallogUrl, USER_AGENT, null, 8000);
                             String postCountText = gallogDoc.select("h2.tit:contains(게시글) span.num")
                                     .text().replaceAll("[^0-9]", "");
                             int postCount = postCountText.isEmpty() ? 0 : Integer.parseInt(postCountText);
@@ -213,7 +236,9 @@ public class ClientEvents {
                 }
             }
         } catch (IOException e) {
-            LOGGER.error("[newposts] 게시물 가져오기 실패: {}", e.getMessage());
+            LOGGER.error("[newposts] 게시물 가져오기 실패 (갤러리: {}): {}", galleryId, e.getMessage(), e);
+        } catch (Exception e) {
+            LOGGER.error("[newposts] 게시물 확인 중 예상치 못한 오류", e);
         }
     }
 
@@ -238,12 +263,24 @@ public class ClientEvents {
                 }
             }
         } catch (Exception e) {
-            LOGGER.error("[newposts] IP 데이터 로드 실패: {}", e.getMessage());
+            LOGGER.error("[newposts] IP 데이터 로드 실패", e);
         }
     }
 
     private static String getIspLabel(String prefix) {
         loadIspData();
         return ISP_MAP.get(prefix);
+    }
+
+    private static Document fetchDocument(String url, String userAgent, String referer, int timeoutMs) throws IOException {
+        HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
+        conn.setRequestProperty("User-Agent", userAgent);
+        if (referer != null) conn.setRequestProperty("Referer", referer);
+        conn.setConnectTimeout(timeoutMs);
+        conn.setReadTimeout(timeoutMs);
+        conn.setInstanceFollowRedirects(true);
+        try (InputStream in = conn.getInputStream()) {
+            return Jsoup.parse(in, "UTF-8", url);
+        }
     }
 }

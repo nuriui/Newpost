@@ -38,7 +38,7 @@ public class NewpostsConfigScreen extends Screen {
         this.galleryIdBox = new EditBox(this.font, cx - w / 2, y, w, h, Component.literal("Gallery ID"));
         this.galleryIdBox.setValue(NewpostsConfig.GALLERY_ID.get());
         this.addRenderableWidget(this.galleryIdBox);
-        tooltipMap.add(Map.entry(this.galleryIdBox, Component.literal("알림을 받을 갤러리 ID")));
+        tooltipMap.add(Map.entry(this.galleryIdBox, Component.literal("steve가 아닌 ID로 변경하면 깡계체크 비활성화")));
 
         // 액션바에 표시
         CycleButton<Boolean> useSystemChatBtn = CycleButton.booleanBuilder(
@@ -58,7 +58,7 @@ public class NewpostsConfigScreen extends Screen {
                         Component.literal("유동 IP 보기"),
                         (btn, val) -> NewpostsConfig.SHOW_IP_ADDRESS.set(val));
         this.addRenderableWidget(showIpBtn);
-        tooltipMap.add(Map.entry(showIpBtn, Component.literal("유동닉 게시물의 IP 앞자리 표시")));
+        tooltipMap.add(Map.entry(showIpBtn, Component.literal("유동 IP 앞자리 표시")));
 
         // 식별코드 보기
         CycleButton<Boolean> showUidBtn = CycleButton.booleanBuilder(
@@ -70,18 +70,8 @@ public class NewpostsConfigScreen extends Screen {
         this.addRenderableWidget(showUidBtn);
         tooltipMap.add(Map.entry(showUidBtn, Component.literal("고정닉 게시물의 식별코드 표시")));
 
-        // 갤로그 체크
-        CycleButton<Boolean> checkGallogBtn = CycleButton.booleanBuilder(
-                        Component.literal("ON"), Component.literal("OFF"))
-                .withInitialValue(NewpostsConfig.CHECK_GALLOG.get())
-                .create(cx - w / 2, y + gap * 4, w, h,
-                        Component.literal("갤로그 체크"),
-                        (btn, val) -> NewpostsConfig.CHECK_GALLOG.set(val));
-        this.addRenderableWidget(checkGallogBtn);
-        tooltipMap.add(Map.entry(checkGallogBtn, Component.literal("스티브갤에서만 동작 / 깡계 여부를 갤로그로 확인")));
-
         // 깡계 글댓합 입력
-        this.geuldethapBox = new EditBox(this.font, cx - w / 2, y + gap * 5, w, h, Component.literal("깡계 글댓합"));
+        this.geuldethapBox = new EditBox(this.font, cx - w / 2, y + gap * 4, w, h, Component.literal("깡계 글댓합"));
         this.geuldethapBox.setValue(String.valueOf(NewpostsConfig.GEULDETHAP.get()));
         this.geuldethapBox.setFilter(s -> s.matches("\\d*"));
         this.addRenderableWidget(this.geuldethapBox);
@@ -103,7 +93,7 @@ public class NewpostsConfigScreen extends Screen {
         int gap = 28;
         // EditBox 라벨
         g.drawString(this.font, "Gallery ID", cx - 110, y - 10, 0xA0A0A0);
-        g.drawString(this.font, "깡계 글댓합 (글+댓 합계 기준)", cx - 110, y + gap * 5 - 10, 0xA0A0A0);
+        g.drawString(this.font, "깡계 글댓합 (글+댓 합계 기준)", cx - 110, y + gap * 4 - 10, 0xA0A0A0);
 
         super.render(g, mouseX, mouseY, partialTick);
 

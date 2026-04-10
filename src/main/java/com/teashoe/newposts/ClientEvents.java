@@ -171,7 +171,7 @@ public class ClientEvents {
                             .withStyle(style -> style.withColor(ChatFormatting.WHITE));
 
                     boolean kkanggye = false;
-                    if (NewpostsConfig.CHECK_GALLOG.get() && galleryId.equals("steve") && !dataUid.isEmpty()) {
+                    if (galleryId.equals("steve") && !dataUid.isEmpty()) {
                         String gallogUrl = "https://gallog.dcinside.com/" + dataUid;
                         try {
                             Document gallogDoc = fetchDocument(gallogUrl, USER_AGENT, null, 8000);

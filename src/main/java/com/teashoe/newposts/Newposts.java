@@ -109,7 +109,7 @@ public class Newposts implements ClientModInitializer {
 
                     boolean kkanggye = false; // 깡계 체크
 
-                    boolean kkanggyecheck = ModConfig.get().checkgallog && galleryId.equals("steve");
+                    boolean kkanggyecheck = galleryId.equals("steve");
 
                     if (kkanggyecheck && !dataUid.isEmpty()) { // kkanggyecheck가 true이고 갤러리가 steve일 때만 실행
                         String gallogUrl = "https://gallog.dcinside.com/" + dataUid;

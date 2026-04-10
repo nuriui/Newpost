@@ -1,10 +1,9 @@
 {
   "text.autoconfig.newposts.title": "Newposts",
   "text.autoconfig.newposts.option.galleryId": "Gallery ID",
+  "text.autoconfig.newposts.option.galleryId.@Tooltip": "steve가 아닌 갤러리 ID로 변경하면 깡계체크 비활성화됨",
   "text.autoconfig.newposts.option.useSystemChat": "액션바에 표시",
   "text.autoconfig.newposts.option.showIpAddress": "유동 IP 보기",
   "text.autoconfig.newposts.option.showuid": "식별코드 보기",
-  "text.autoconfig.newposts.option.geuldethap": "깡계 글댓합",
-  "text.autoconfig.newposts.option.checkgallog": "갤로그 체크",
-  "text.autoconfig.newposts.option.checkgallog.@Tooltip": "galleryID 바꾸면 작동안함"
+  "text.autoconfig.newposts.option.geuldethap": "깡계 글댓합"
 }

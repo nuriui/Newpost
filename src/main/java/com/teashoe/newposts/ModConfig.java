@@ -8,13 +8,11 @@ import me.shedaniel.autoconfig.serializer.GsonConfigSerializer;
 
 @Config(name = "newposts")
 public class ModConfig implements ConfigData {
+    @ConfigEntry.Gui.Tooltip(count = 1)
     public String galleryId = "steve"; // 기본값
     public boolean useSystemChat = false;
     public boolean showIpAddress = true;
     public boolean showuid = true;
-
-    @ConfigEntry.Gui.Tooltip(count = 1)
-    public boolean checkgallog = true;
 
     public int geuldethap = 100; // 깡계 기준
 

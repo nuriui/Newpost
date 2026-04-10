@@ -38,6 +38,7 @@ public class ClientEvents {
     private static boolean ispLoaded = false;
     private static boolean initialized = false;
     private static String lastInitializedGalleryId = "";
+    private static String invalidGalleryIdLogged = null;
     private static ScheduledExecutorService scheduler;
 
     // DC Inside 접속 시 필요한 브라우저 헤더
@@ -170,7 +171,7 @@ public class ClientEvents {
                             .withStyle(style -> style.withColor(ChatFormatting.WHITE));
 
                     boolean kkanggye = false;
-                    if (NewpostsConfig.CHECK_GALLOG.get() && !dataUid.isEmpty()) {
+                    if (NewpostsConfig.CHECK_GALLOG.get() && galleryId.equals("steve") && !dataUid.isEmpty()) {
                         String gallogUrl = "https://gallog.dcinside.com/" + dataUid;
                         try {
                             Document gallogDoc = fetchDocument(gallogUrl, USER_AGENT, null, 8000);
@@ -236,7 +237,13 @@ public class ClientEvents {
                 }
             }
         } catch (IOException e) {
-            LOGGER.error("[newposts] 게시물 가져오기 실패 (갤러리: {}): {}", galleryId, e.getMessage(), e);
+            String msg = e.getMessage();
+            if (msg != null && msg.contains("404") && !galleryId.equals(invalidGalleryIdLogged)) {
+                LOGGER.error("[newposts] galleryID가 잘못되었습니다. ({})", galleryId);
+                invalidGalleryIdLogged = galleryId;
+            } else if (msg == null || !msg.contains("404")) {
+                LOGGER.error("[newposts] 게시물 가져오기 실패 (갤러리: {}): {}", galleryId, msg, e);
+            }
         } catch (Exception e) {
             LOGGER.error("[newposts] 게시물 확인 중 예상치 못한 오류", e);
         }

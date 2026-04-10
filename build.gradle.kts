@@ -54,22 +54,25 @@ dependencies {
     jarJar(implementation("org.jsoup:jsoup:[1.18.1,1.19)")!!)
 }
 
+val manifest = Action<Manifest> {
+    attributes(
+        "Specification-Title" to "newposts",
+        "Specification-Vendor" to "Teashoe",
+        "Specification-Version" to "1",
+        "Implementation-Title" to project.name,
+        "Implementation-Version" to project.version,
+        "Implementation-Vendor" to "Teashoe",
+    )
+}
+
 tasks.named<Jar>("jar") {
-    manifest {
-        attributes(
-            "Specification-Title" to "newposts",
-            "Specification-Vendor" to "Teashoe",
-            "Specification-Version" to "1",
-            "Implementation-Title" to project.name,
-            "Implementation-Version" to project.version,
-            "Implementation-Vendor" to "Teashoe",
-        )
-    }
-    finalizedBy("reobfJar")
+    archiveClassifier.set("slim")
+    manifest(manifest)
 }
 
 tasks.named<Jar>("jarJar") {
     archiveClassifier.set("")
+    manifest(manifest)
     finalizedBy("reobfJarJar")
 }
 

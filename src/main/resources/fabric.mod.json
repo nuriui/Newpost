@@ -3,7 +3,7 @@
   "id": "newposts",
   "version": "${version}",
   "name": "Newposts",
-  "description": "Get notifications of new posts on dcinside",
+  "description": "디시인사이드 새글 알리미",
   "authors": [
     "Teashoe"
   ],

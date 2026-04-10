@@ -18,6 +18,7 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.world.InteractionResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.jsoup.HttpStatusException;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -35,6 +36,7 @@ public class Newposts implements ClientModInitializer {
 
     private boolean newPostAlertEnabled = true;
     private final Set<String> currentPostNumbers = new HashSet<>();
+    private String invalidGalleryIdLogged = null;
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private static final Logger LOGGER = LoggerFactory.getLogger("newposts");
 
@@ -107,9 +109,9 @@ public class Newposts implements ClientModInitializer {
 
                     boolean kkanggye = false; // 깡계 체크
 
-                    boolean kkanggyecheck = ModConfig.get().checkgallog;
+                    boolean kkanggyecheck = ModConfig.get().checkgallog && galleryId.equals("steve");
 
-                    if (kkanggyecheck && !dataUid.isEmpty()) { // kkanggyecheck가 true일 때만 실행
+                    if (kkanggyecheck && !dataUid.isEmpty()) { // kkanggyecheck가 true이고 갤러리가 steve일 때만 실행
                         String gallogUrl = "https://gallog.dcinside.com/" + dataUid;
                         try {
                             Document gallogDoc = Jsoup.connect(gallogUrl).get();
@@ -184,6 +186,11 @@ public class Newposts implements ClientModInitializer {
                 }
             }
 
+        } catch (HttpStatusException e) {
+            if (e.getStatusCode() == 404 && !galleryId.equals(invalidGalleryIdLogged)) {
+                LOGGER.error("galleryID가 잘못되었습니다. ({})", galleryId);
+                invalidGalleryIdLogged = galleryId;
+            }
         } catch (IOException e) {
             LOGGER.error("게시물을 가져오는 중 오류 발생: {}", e.getMessage());
         }

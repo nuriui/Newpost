@@ -6,5 +6,5 @@
   "text.autoconfig.newposts.option.showuid": "식별코드 보기",
   "text.autoconfig.newposts.option.geuldethap": "깡계 글댓합",
   "text.autoconfig.newposts.option.checkgallog": "갤로그 체크",
-  "text.autoconfig.newposts.option.checkgallog.@Tooltip": "스티브갤 말고 다른갤에선 끄는거 추천"
+  "text.autoconfig.newposts.option.checkgallog.@Tooltip": "galleryID 바꾸면 작동안함"
 }

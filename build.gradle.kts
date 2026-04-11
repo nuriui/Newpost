@@ -1,5 +1,5 @@
 plugins {
-    id("net.minecraftforge.gradle") version "[6.0,6.2)"
+    id("net.neoforged.moddev") version "2.0.78"
     java
     `maven-publish`
 }
@@ -12,30 +12,25 @@ base {
 }
 
 java {
-    toolchain.languageVersion.set(JavaLanguageVersion.of(17))
+    toolchain.languageVersion.set(JavaLanguageVersion.of(21))
     withSourcesJar()
 }
 
-minecraft {
-    mappings("official", "1.20.1")
-    copyIdeResources.set(true)
+neoForge {
+    version = property("neo_version") as String
 
     runs {
         create("client") {
-            workingDirectory(project.file("run"))
-            property("forge.logging.markers", "REGISTRIES")
-            property("forge.logging.console.level", "debug")
-            mods {
-                create("newposts") { source(sourceSets["main"]) }
-            }
+            client()
         }
         create("server") {
-            workingDirectory(project.file("run"))
-            property("forge.logging.markers", "REGISTRIES")
-            property("forge.logging.console.level", "debug")
-            mods {
-                create("newposts") { source(sourceSets["main"]) }
-            }
+            server()
+        }
+    }
+
+    mods {
+        register("newposts") {
+            sourceSet(sourceSets["main"])
         }
     }
 }
@@ -44,45 +39,26 @@ repositories {
     mavenCentral()
 }
 
-jarJar.enable()
-
 dependencies {
-    val minecraftVersion = property("minecraft_version") as String
-    val forgeVersion = property("forge_version") as String
-    "minecraft"("net.minecraftforge:forge:$minecraftVersion-$forgeVersion")
-
     jarJar(implementation("org.jsoup:jsoup:[1.18.1,1.19)")!!)
 }
 
-val manifest = Action<Manifest> {
-    attributes(
-        "Specification-Title" to "newposts",
-        "Specification-Vendor" to "Teashoe",
-        "Specification-Version" to "1",
-        "Implementation-Title" to project.name,
-        "Implementation-Version" to project.version,
-        "Implementation-Vendor" to "Teashoe",
-    )
-}
-
 tasks.named<Jar>("jar") {
-    archiveClassifier.set("slim")
-    manifest(manifest)
-}
-
-tasks.named<Jar>("jarJar") {
-    archiveClassifier.set("")
-    manifest(manifest)
-    finalizedBy("reobfJarJar")
-}
-
-reobf {
-    create("jarJar")
+    manifest {
+        attributes(
+            "Specification-Title" to "newposts",
+            "Specification-Vendor" to "Teashoe",
+            "Specification-Version" to "1",
+            "Implementation-Title" to project.name,
+            "Implementation-Version" to project.version,
+            "Implementation-Vendor" to "Teashoe",
+        )
+    }
 }
 
 tasks.withType<JavaCompile>().configureEach {
     options.encoding = "UTF-8"
-    options.release.set(17)
+    options.release.set(21)
 }
 
 publishing {

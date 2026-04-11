@@ -1,25 +1,25 @@
 modLoader="javafml"
-loaderVersion="[47,)"
+loaderVersion="[4,)"
 license="MIT"
 
 [[mods]]
     modId="newposts"
     version="${file.jarVersion}"
     displayName="Newposts"
-    description='''Get notifications of new posts on dcinside'''
+    description='''디시인사이드 새글 알리미'''
     logoFile="icon.png"
     authors="Teashoe"
 
 [[dependencies.newposts]]
-    modId="forge"
-    mandatory=true
-    versionRange="[47.3.0,)"
+    modId="neoforge"
+    type="required"
+    versionRange="[21.1,)"
     ordering="NONE"
     side="BOTH"
 
 [[dependencies.newposts]]
     modId="minecraft"
-    mandatory=true
-    versionRange="[1.20.1,1.21)"
+    type="required"
+    versionRange="[1.21.1,1.22)"
     ordering="NONE"
     side="BOTH"

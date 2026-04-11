@@ -85,7 +85,7 @@ public class NewpostsConfigScreen extends Screen {
 
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
-        this.renderBackground(g);
+        super.render(g, mouseX, mouseY, partialTick);
         g.drawCenteredString(this.font, this.title, this.width / 2, 20, 0xFFFFFF);
 
         int cx = this.width / 2;
@@ -94,8 +94,6 @@ public class NewpostsConfigScreen extends Screen {
         // EditBox 라벨
         g.drawString(this.font, "Gallery ID", cx - 110, y - 10, 0xA0A0A0);
         g.drawString(this.font, "깡계 글댓합 (글+댓 합계 기준)", cx - 110, y + gap * 4 - 10, 0xA0A0A0);
-
-        super.render(g, mouseX, mouseY, partialTick);
 
         for (Map.Entry<AbstractWidget, Component> entry : tooltipMap) {
             AbstractWidget widget = entry.getKey();

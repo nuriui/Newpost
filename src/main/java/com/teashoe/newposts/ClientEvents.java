@@ -7,10 +7,10 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.sounds.SoundEvents;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -23,12 +23,8 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
-@Mod.EventBusSubscriber(modid = Newposts.MOD_ID, value = Dist.CLIENT)
+@EventBusSubscriber(modid = Newposts.MOD_ID, value = Dist.CLIENT)
 public class ClientEvents {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Newposts.MOD_ID);
@@ -136,7 +132,7 @@ public class ClientEvents {
 
         String galleryId = NewpostsConfig.GALLERY_ID.get();
 
-        // galleryId가 초기화 당시와 다르면 알림 없이 재초기화 (Forge가 이벤트 전에 config 값을 먼저 반영하는 문제 대응)
+        // galleryId가 초기화 당시와 다르면 알림 없이 재초기화
         if (!galleryId.equals(lastInitializedGalleryId)) {
             initializePostNumbers();
             return;

@@ -1,0 +1,14 @@
+[
+  {
+    "modid": "newposts",
+    "name": "Newposts",
+    "description": "디시인사이드 새글 알리미",
+    "version": "${version}",
+    "mcversion": "${mcversion}",
+    "logoFile": "icon.png",
+    "url": "",
+    "authorList": ["Teashoe"],
+    "credits": "",
+    "dependencies": []
+  }
+]

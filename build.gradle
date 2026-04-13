@@ -1,0 +1,58 @@
+plugins {
+    id 'com.gtnewhorizons.retrofuturagradle' version '1.4.0'
+    id 'java'
+}
+
+group = 'com.teashoe'
+version = "${mod_version}"
+archivesBaseName = 'newposts'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+minecraft {
+    mcVersion = '1.7.10'
+    username = 'Player'
+    injectedTags.put('VERSION', project.version)
+}
+
+repositories {
+    maven {
+        name = 'MinecraftForge'
+        url = 'https://maven.minecraftforge.net/'
+    }
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.jsoup:jsoup:1.18.1'
+}
+
+jar {
+    from({
+        configurations.runtimeClasspath.filter { it.name.contains('jsoup') }.collect { zipTree(it) }
+    }) {
+        exclude 'META-INF', 'META-INF/**'
+    }
+    manifest {
+        attributes(
+            'Specification-Title'     : 'newposts',
+            'Specification-Vendor'    : 'Teashoe',
+            'Implementation-Title'    : project.archivesBaseName,
+            'Implementation-Version'  : project.version,
+            'Implementation-Vendor'   : 'Teashoe'
+        )
+    }
+}
+
+processResources {
+    inputs.property 'version', project.version
+    inputs.property 'mcversion', '1.7.10'
+    filesMatching('mcmod.info') {
+        expand 'version': project.version, 'mcversion': '1.7.10'
+    }
+}
+
+compileJava.options.encoding = 'UTF-8'

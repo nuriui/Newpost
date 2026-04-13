@@ -1,127 +1,183 @@
 package com.teashoe.newposts;
 
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.components.CycleButton;
-import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.network.chat.Component;
+import net.minecraft.client.gui.GuiButton;
+import net.minecraft.client.gui.GuiScreen;
+import net.minecraft.client.gui.GuiTextField;
+import org.lwjgl.input.Keyboard;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+public class NewpostsConfigScreen extends GuiScreen {
 
-public class NewpostsConfigScreen extends Screen {
+    private final GuiScreen parent;
 
-    private final Screen parent;
+    private GuiTextField galleryIdField;
+    private GuiTextField geuldethapField;
 
-    private EditBox galleryIdBox;
-    private EditBox geuldethapBox;
-    private final List<Map.Entry<AbstractWidget, Component>> tooltipMap = new ArrayList<>();
+    // 토글 버튼 ID
+    private static final int BTN_SYSTEM_CHAT = 10;
+    private static final int BTN_SHOW_IP     = 11;
+    private static final int BTN_SHOW_UID    = 12;
+    private static final int BTN_DONE        = 20;
 
-    public NewpostsConfigScreen(Screen parent) {
-        super(Component.literal("Newposts 설정"));
+    // 토글 상태 (init에서 config에서 읽어옴)
+    private boolean useSystemChat;
+    private boolean showIpAddress;
+    private boolean showUid;
+
+    public NewpostsConfigScreen(GuiScreen parent) {
         this.parent = parent;
     }
 
     @Override
-    protected void init() {
-        tooltipMap.clear();
+    public void initGui() {
+        Keyboard.enableRepeatEvents(true);
+
+        useSystemChat = NewpostsConfig.useSystemChat;
+        showIpAddress = NewpostsConfig.showIpAddress;
+        showUid       = NewpostsConfig.showUid;
+
         int cx = this.width / 2;
-        int y = 50;
+        int y  = 50;
         int gap = 28;
-        int w = 220;
-        int h = 20;
+        int w  = 220;
+        int h  = 20;
 
-        // Gallery ID 입력
-        this.galleryIdBox = new EditBox(this.font, cx - w / 2, y, w, h, Component.literal("Gallery ID"));
-        this.galleryIdBox.setValue(NewpostsConfig.GALLERY_ID.get());
-        this.addRenderableWidget(this.galleryIdBox);
-        tooltipMap.add(Map.entry(this.galleryIdBox, Component.literal("steve가 아닌 ID로 변경하면 깡계체크 비활성화")));
+        // Gallery ID 텍스트 필드
+        galleryIdField = new GuiTextField(this.fontRendererObj, cx - w / 2, y, w, h);
+        galleryIdField.setMaxStringLength(64);
+        galleryIdField.setText(NewpostsConfig.galleryId);
+        galleryIdField.setFocused(true);
 
-        // 액션바에 표시
-        CycleButton<Boolean> useSystemChatBtn = CycleButton.booleanBuilder(
-                        Component.literal("ON"), Component.literal("OFF"))
-                .withInitialValue(NewpostsConfig.USE_SYSTEM_CHAT.get())
-                .create(cx - w / 2, y + gap, w, h,
-                        Component.literal("액션바에 표시"),
-                        (btn, val) -> NewpostsConfig.USE_SYSTEM_CHAT.set(val));
-        this.addRenderableWidget(useSystemChatBtn);
-        tooltipMap.add(Map.entry(useSystemChatBtn, Component.literal("ON: 액션바에 표시 / OFF: 채팅창에 표시")));
+        // 깡계 글댓합 텍스트 필드
+        geuldethapField = new GuiTextField(this.fontRendererObj, cx - w / 2, y + gap * 4, w, h);
+        geuldethapField.setMaxStringLength(10);
+        geuldethapField.setText(String.valueOf(NewpostsConfig.geuldethap));
 
-        // 유동 IP 보기
-        CycleButton<Boolean> showIpBtn = CycleButton.booleanBuilder(
-                        Component.literal("ON"), Component.literal("OFF"))
-                .withInitialValue(NewpostsConfig.SHOW_IP_ADDRESS.get())
-                .create(cx - w / 2, y + gap * 2, w, h,
-                        Component.literal("유동 IP 보기"),
-                        (btn, val) -> NewpostsConfig.SHOW_IP_ADDRESS.set(val));
-        this.addRenderableWidget(showIpBtn);
-        tooltipMap.add(Map.entry(showIpBtn, Component.literal("유동 IP 앞자리 표시")));
-
-        // 식별코드 보기
-        CycleButton<Boolean> showUidBtn = CycleButton.booleanBuilder(
-                        Component.literal("ON"), Component.literal("OFF"))
-                .withInitialValue(NewpostsConfig.SHOW_UID.get())
-                .create(cx - w / 2, y + gap * 3, w, h,
-                        Component.literal("식별코드 보기"),
-                        (btn, val) -> NewpostsConfig.SHOW_UID.set(val));
-        this.addRenderableWidget(showUidBtn);
-        tooltipMap.add(Map.entry(showUidBtn, Component.literal("고정닉 게시물의 식별코드 표시")));
-
-        // 깡계 글댓합 입력
-        this.geuldethapBox = new EditBox(this.font, cx - w / 2, y + gap * 4, w, h, Component.literal("깡계 글댓합"));
-        this.geuldethapBox.setValue(String.valueOf(NewpostsConfig.GEULDETHAP.get()));
-        this.geuldethapBox.setFilter(s -> s.matches("\\d*"));
-        this.addRenderableWidget(this.geuldethapBox);
-        tooltipMap.add(Map.entry(this.geuldethapBox, Component.literal("이 값보다 글+댓 합계가 낮으면 깡계로 표시")));
+        // 토글 버튼들
+        this.buttonList.add(new GuiButton(BTN_SYSTEM_CHAT, cx - w / 2, y + gap,     w, h,
+                "액션바에 표시: " + onOff(useSystemChat)));
+        this.buttonList.add(new GuiButton(BTN_SHOW_IP,     cx - w / 2, y + gap * 2, w, h,
+                "유동 IP 보기: " + onOff(showIpAddress)));
+        this.buttonList.add(new GuiButton(BTN_SHOW_UID,    cx - w / 2, y + gap * 3, w, h,
+                "식별코드 보기: " + onOff(showUid)));
 
         // 완료 버튼
-        this.addRenderableWidget(Button.builder(Component.literal("완료"), btn -> this.onClose())
-                .bounds(cx - 100, this.height - 35, 200, 20)
-                .build());
+        this.buttonList.add(new GuiButton(BTN_DONE, cx - 100, this.height - 35, 200, h, "완료"));
     }
 
     @Override
-    public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
-        super.render(g, mouseX, mouseY, partialTick);
-        g.drawCenteredString(this.font, this.title, this.width / 2, 20, 0xFFFFFF);
+    protected void actionPerformed(GuiButton button) {
+        int cx = this.width / 2;
+        int w  = 220;
+        int y  = 50;
+        int gap = 28;
+
+        switch (button.id) {
+            case BTN_SYSTEM_CHAT:
+                useSystemChat = !useSystemChat;
+                button.displayString = "액션바에 표시: " + onOff(useSystemChat);
+                break;
+            case BTN_SHOW_IP:
+                showIpAddress = !showIpAddress;
+                button.displayString = "유동 IP 보기: " + onOff(showIpAddress);
+                break;
+            case BTN_SHOW_UID:
+                showUid = !showUid;
+                button.displayString = "식별코드 보기: " + onOff(showUid);
+                break;
+            case BTN_DONE:
+                save();
+                this.mc.displayGuiScreen(this.parent);
+                break;
+        }
+    }
+
+    @Override
+    protected void keyTyped(char typedChar, int keyCode) {
+        // ESC → 저장 후 닫기
+        if (keyCode == Keyboard.KEY_ESCAPE) {
+            save();
+            this.mc.displayGuiScreen(this.parent);
+            return;
+        }
+        // 숫자만 허용 (깡계 필드)
+        if (geuldethapField.isFocused()) {
+            if (Character.isDigit(typedChar) || keyCode == Keyboard.KEY_BACK
+                    || keyCode == Keyboard.KEY_DELETE || keyCode == Keyboard.KEY_LEFT
+                    || keyCode == Keyboard.KEY_RIGHT || keyCode == Keyboard.KEY_HOME
+                    || keyCode == Keyboard.KEY_END) {
+                geuldethapField.textboxKeyTyped(typedChar, keyCode);
+            }
+        } else {
+            galleryIdField.textboxKeyTyped(typedChar, keyCode);
+        }
+    }
+
+    @Override
+    protected void mouseClicked(int mouseX, int mouseY, int mouseButton) {
+        super.mouseClicked(mouseX, mouseY, mouseButton);
+        galleryIdField.mouseClicked(mouseX, mouseY, mouseButton);
+        geuldethapField.mouseClicked(mouseX, mouseY, mouseButton);
+    }
+
+    @Override
+    public void updateScreen() {
+        galleryIdField.updateCursorCounter();
+        geuldethapField.updateCursorCounter();
+    }
+
+    @Override
+    public void drawScreen(int mouseX, int mouseY, float partialTicks) {
+        this.drawDefaultBackground();
+
+        // 제목
+        this.drawCenteredString(this.fontRendererObj, "Newposts \uc124\uc815",
+                this.width / 2, 10, 0xFFFFFF);
 
         int cx = this.width / 2;
-        int y = 50;
+        int y  = 50;
         int gap = 28;
-        // EditBox 라벨
-        g.drawString(this.font, "Gallery ID", cx - 110, y - 10, 0xA0A0A0);
-        g.drawString(this.font, "깡계 글댓합 (글+댓 합계 기준)", cx - 110, y + gap * 4 - 10, 0xA0A0A0);
 
-        for (Map.Entry<AbstractWidget, Component> entry : tooltipMap) {
-            AbstractWidget widget = entry.getKey();
-            if (mouseX >= widget.getX() && mouseX <= widget.getX() + widget.getWidth()
-                    && mouseY >= widget.getY() && mouseY <= widget.getY() + widget.getHeight()) {
-                g.renderComponentTooltip(this.font, List.of(entry.getValue()), mouseX, mouseY);
-                break;
-            }
-        }
+        // 라벨
+        this.drawString(this.fontRendererObj, "Gallery ID",
+                cx - 110, y - 10, 0xA0A0A0);
+        this.drawString(this.fontRendererObj, "\uae65\uacc4 \uae00\ub313\ud569 (\uae00+\ub313 \ud569\uacc4 \uae30\uc900)",
+                cx - 110, y + gap * 4 - 10, 0xA0A0A0);
+
+        galleryIdField.drawTextBox();
+        geuldethapField.drawTextBox();
+
+        super.drawScreen(mouseX, mouseY, partialTicks);
     }
 
     @Override
-    public void onClose() {
-        // 값 저장
-        NewpostsConfig.GALLERY_ID.set(this.galleryIdBox.getValue());
-        String val = this.geuldethapBox.getValue();
+    public void onGuiClosed() {
+        Keyboard.enableRepeatEvents(false);
+    }
+
+    @Override
+    public boolean doesGuiPauseGame() {
+        return false;
+    }
+
+    private void save() {
+        NewpostsConfig.galleryId    = galleryIdField.getText().trim();
+        NewpostsConfig.useSystemChat = useSystemChat;
+        NewpostsConfig.showIpAddress = showIpAddress;
+        NewpostsConfig.showUid       = showUid;
+
+        String val = geuldethapField.getText().trim();
         if (!val.isEmpty()) {
             try {
-                NewpostsConfig.GEULDETHAP.set(Integer.parseInt(val));
+                NewpostsConfig.geuldethap = Integer.parseInt(val);
             } catch (NumberFormatException ignored) {}
         }
-        NewpostsConfig.SPEC.save();
+        NewpostsConfig.save();
 
-        this.minecraft.setScreen(this.parent);
+        // 갤러리 ID가 바뀌었으면 재초기화
+        ClientEvents.initializePostNumbers();
     }
 
-    @Override
-    public boolean isPauseScreen() {
-        return false;
+    private static String onOff(boolean value) {
+        return value ? "ON" : "OFF";
     }
 }

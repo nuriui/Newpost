@@ -1,41 +1,35 @@
 package com.teashoe.newposts;
 
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.IEventBus;
-import net.neoforged.fml.ModContainer;
-import net.neoforged.fml.common.Mod;
-import net.neoforged.fml.config.ModConfig;
-import net.neoforged.fml.event.config.ModConfigEvent;
-import net.neoforged.fml.loading.FMLEnvironment;
-import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import cpw.mods.fml.common.Mod;
+import cpw.mods.fml.common.SidedProxy;
+import cpw.mods.fml.common.event.FMLInitializationEvent;
+import cpw.mods.fml.common.event.FMLPreInitializationEvent;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
-@Mod(Newposts.MOD_ID)
+@Mod(modid = Newposts.MOD_ID, name = "Newposts", version = "@VERSION@",
+        dependencies = "required-after:Forge@[10.13.4,)",
+        guiFactory = "com.teashoe.newposts.NewpostsGuiFactory")
 public class Newposts {
 
     public static final String MOD_ID = "newposts";
-    public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
+    public static final Logger LOGGER = LogManager.getLogger(MOD_ID);
 
-    public Newposts(IEventBus modEventBus, ModContainer modContainer) {
-        LOGGER.info("[newposts] 모드 초기화 시작 (classloader: {})", Newposts.class.getClassLoader().getClass().getName());
-        modContainer.registerConfig(ModConfig.Type.CLIENT, NewpostsConfig.SPEC, "newposts-client.toml");
-        LOGGER.info("[newposts] 클라이언트 설정 등록 완료");
+    @SidedProxy(clientSide = "com.teashoe.newposts.ClientProxy",
+                serverSide = "com.teashoe.newposts.CommonProxy")
+    public static CommonProxy proxy;
 
-        modEventBus.addListener(this::onConfigReload);
-
-        if (FMLEnvironment.dist == Dist.CLIENT) {
-            LOGGER.info("[newposts] 클라이언트 환경 확인됨 - 설정 화면 등록 중");
-            modContainer.registerExtensionPoint(IConfigScreenFactory.class,
-                (mc, parent) -> new NewpostsConfigScreen(parent));
-        }
-        LOGGER.info("[newposts] 모드 초기화 완료");
+    @Mod.EventHandler
+    public void preInit(FMLPreInitializationEvent event) {
+        LOGGER.info("[newposts] 모드 초기화 시작");
+        NewpostsConfig.init(event.getSuggestedConfigurationFile());
+        proxy.preInit(event);
+        LOGGER.info("[newposts] preInit 완료");
     }
 
-    private void onConfigReload(ModConfigEvent.Reloading event) {
-        if (event.getConfig().getModId().equals(MOD_ID)) {
-            LOGGER.info("[newposts] 설정 리로드 감지됨 - 게시물 번호 재초기화");
-            ClientEvents.initializePostNumbers();
-        }
+    @Mod.EventHandler
+    public void init(FMLInitializationEvent event) {
+        proxy.init(event);
+        LOGGER.info("[newposts] 모드 초기화 완료");
     }
 }

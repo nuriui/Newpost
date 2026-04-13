@@ -1,0 +1,6 @@
+newposts.config.title=Newposts Settings
+newposts.config.galleryId=Gallery ID
+newposts.config.useSystemChat=Show in Action Bar
+newposts.config.showIpAddress=Show IP Address
+newposts.config.showuid=Show UID
+newposts.config.geuldethap=Spam Post Threshold

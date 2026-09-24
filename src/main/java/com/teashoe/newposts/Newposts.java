@@ -1,12 +1,7 @@
 package com.teashoe.newposts;
 
-import com.mojang.brigadier.CommandDispatcher;
-import com.mojang.brigadier.arguments.StringArgumentType;
-import com.mojang.brigadier.context.CommandContext;
 import net.fabricmc.api.ClientModInitializer;
-import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.ClickEvent;
@@ -26,7 +21,9 @@ import org.jsoup.select.Elements;
 import java.io.*;
 import java.net.URI;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import me.shedaniel.autoconfig.AutoConfig;
@@ -35,9 +32,14 @@ import me.shedaniel.autoconfig.serializer.GsonConfigSerializer;
 public class Newposts implements ClientModInitializer {
 
     private boolean newPostAlertEnabled = true;
-    private final Set<String> currentPostNumbers = new HashSet<>();
+    private final Set<String> currentPostNumbers = ConcurrentHashMap.newKeySet();
     private String invalidGalleryIdLogged = null;
-    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(task -> {
+        Thread thread = new Thread(task, "newposts-scheduler");
+        thread.setDaemon(true);
+        return thread;
+    });
+    private ScheduledFuture<?> pollingTask;
     private static final Logger LOGGER = LoggerFactory.getLogger("newposts");
 
     // ✅ 통신사 캐시
@@ -53,12 +55,34 @@ public class Newposts implements ClientModInitializer {
             return InteractionResult.SUCCESS;
         });
 
-        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> initializePostNumbers());
-        ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            if (newPostAlertEnabled && !scheduler.isShutdown()) {
-                scheduler.scheduleAtFixedRate(() -> checkNewPosts(client), 0, 60, TimeUnit.SECONDS);
-            }
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
+            currentPostNumbers.clear();
+            scheduler.execute(this::initializePostNumbers);
+            startPolling(client);
         });
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> stopPolling());
+        ClientLifecycleEvents.CLIENT_STOPPING.register(client -> shutdownScheduler());
+    }
+
+    private synchronized void startPolling(Minecraft client) {
+        stopPolling();
+        if (!newPostAlertEnabled || scheduler.isShutdown()) return;
+
+        pollingTask = scheduler.scheduleAtFixedRate(
+                () -> checkNewPosts(client), 1, 1, TimeUnit.SECONDS);
+    }
+
+    private synchronized void stopPolling() {
+        if (pollingTask != null) {
+            pollingTask.cancel(true);
+            pollingTask = null;
+        }
+    }
+
+    private void shutdownScheduler() {
+        stopPolling();
+        scheduler.shutdownNow();
+        currentPostNumbers.clear();
     }
 
     private void initializePostNumbers() {
